@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  company       String?
+  image         String?
+  role          String    @default("user")
+  plan          String    @default("free")
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  campaigns    Campaign[]
+  lists        InfluencerList[]
+  payments     Payment[]
+  subscription Subscription?
+}
+
+model Influencer {
+  id           String   @id @default(cuid())
+  name         String
+  bio          String?
+  avatar       String?
+  email        String?
+  website      String?
+  country      String?
+  city         String?
+  language     String?
+  categories   String   @default("[]")
+  qualityScore Float    @default(0)
+  fraudScore   Float    @default(0)
+  isVerified   Boolean  @default(false)
+  totalReach   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  socialAccounts    SocialAccount[]
+  audienceData      AudienceData[]
+  engagementMetrics EngagementMetric[]
+  campaignLinks     CampaignInfluencer[]
+  listItems         InfluencerListItem[]
+}
+
+model SocialAccount {
+  id                   String    @id @default(cuid())
+  platform             String
+  username             String
+  profileUrl           String?
+  followers            Int       @default(0)
+  following            Int       @default(0)
+  posts                Int       @default(0)
+  engagementRate       Float     @default(0)
+  avgLikes             Int       @default(0)
+  avgComments          Int       @default(0)
+  avgViews             Int       @default(0)
+  audienceDemographics String?
+  isVerified           Boolean   @default(false)
+  lastSynced           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  influencerId String
+  influencer   Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+}
+
+model AudienceData {
+  id           String   @id @default(cuid())
+  platform     String
+  date         DateTime
+  followers    Int      @default(0)
+  ageData      String?
+  genderData   String?
+  locationData String?
+  interestData String?
+  createdAt    DateTime @default(now())
+
+  influencerId String
+  influencer   Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+}
+
+model EngagementMetric {
+  id             String   @id @default(cuid())
+  platform       String
+  date           DateTime
+  engagementRate Float    @default(0)
+  likes          Int      @default(0)
+  comments       Int      @default(0)
+  shares         Int      @default(0)
+  views          Int      @default(0)
+  reach          Int      @default(0)
+  impressions    Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  influencerId String
+  influencer   Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  status      String    @default("draft")
+  platform    String?
+  budget      Float?
+  spent       Float     @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  goals       String?
+  results     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  influencers CampaignInfluencer[]
+}
+
+model CampaignInfluencer {
+  id           String   @id @default(cuid())
+  status       String   @default("invited")
+  fee          Float?
+  notes        String?
+  deliverables String?
+  results      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaignId   String
+  campaign     Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  influencerId String
+  influencer   Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+}
+
+model InfluencerList {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId String
+  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  InfluencerListItem[]
+}
+
+model InfluencerListItem {
+  id        String   @id @default(cuid())
+  notes     String?
+  tags      String?
+  createdAt DateTime @default(now())
+
+  listId       String
+  list         InfluencerList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  influencerId String
+  influencer   Influencer     @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  plan      String    @default("free")
+  status    String    @default("active")
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  userId   String    @unique
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  amount        Float
+  currency      String   @default("TRY")
+  status        String   @default("pending")
+  paymentMethod String?
+  transactionId String?
+  createdAt     DateTime @default(now())
+
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+}
