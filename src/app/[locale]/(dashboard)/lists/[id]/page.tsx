@@ -83,7 +83,8 @@ export default function ListDetailPage() {
   const handleAddInfluencer = (inf: Influencer) => {
     if (!list) return
     addInfluencerToList(list.id, inf)
-    setList(getListById(id))
+    const updated = getListById(id)
+    if (updated) setList({ ...updated, items: [...updated.items] })
     setAddOpen(false)
     setSearchQuery("")
   }
@@ -91,7 +92,8 @@ export default function ListDetailPage() {
   const handleRemove = (itemId: string) => {
     if (!list) return
     removeInfluencerFromList(list.id, itemId)
-    setList(getListById(id))
+    const updated = getListById(id)
+    if (updated) setList({ ...updated, items: [...updated.items] })
   }
 
   if (!list) {
