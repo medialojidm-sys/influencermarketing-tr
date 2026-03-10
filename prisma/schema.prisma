@@ -177,3 +177,16 @@ model Payment {
   user   User   @relation(fields: [userId], references: [id])
   userId String
 }
+
+model SocialProfileCache {
+  id        String   @id @default(cuid())
+  platform  String
+  username  String
+  data      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([platform, username])
+  @@index([expiresAt])
+}

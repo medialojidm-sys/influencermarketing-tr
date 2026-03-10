@@ -1,13 +1,16 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import { filterInfluencers } from "@/lib/mock-data"
+import { formatNumber } from "@/lib/utils"
 import { InfluencerCard } from "@/components/influencer/influencer-card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Select,
   SelectContent,
@@ -24,9 +27,25 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Search, Filter, X } from "lucide-react"
+import { Search, Filter, X, Globe, Loader2, Instagram, Youtube, ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Platform } from "@/types"
+
+interface SocialSearchResult {
+  platform: Platform
+  id: string
+  username: string
+  displayName: string
+  avatarUrl: string
+  followers: number
+  description: string
+  isVerified: boolean
+}
+
+interface PlatformStatus {
+  platform: Platform
+  configured: boolean
+}
 
 const PLATFORMS: { value: "" | Platform; labelKey: string }[] = [
   { value: "", labelKey: "common.all" },
@@ -83,6 +102,29 @@ export default function DiscoverPage() {
   const [sortBy, setSortBy] = useState("followers")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const [socialResults, setSocialResults] = useState<SocialSearchResult[]>([])
+  const [socialLoading, setSocialLoading] = useState(false)
+  const [socialSearched, setSocialSearched] = useState(false)
+  const [platformStatuses, setPlatformStatuses] = useState<PlatformStatus[]>([])
+
+  const handleSocialSearch = useCallback(async () => {
+    if (!search || search.length < 2) return
+    setSocialLoading(true)
+    setSocialSearched(true)
+    try {
+      const params = new URLSearchParams({ q: search })
+      if (platform) params.set("platform", platform)
+      const res = await fetch(`/api/social/search?${params}`)
+      const data = await res.json()
+      setSocialResults(data.results || [])
+      if (data.platforms) setPlatformStatuses(data.platforms)
+    } catch {
+      setSocialResults([])
+    } finally {
+      setSocialLoading(false)
+    }
+  }, [search, platform])
 
   const influencers = useMemo(() => {
     return filterInfluencers({
@@ -261,15 +303,65 @@ export default function DiscoverPage() {
       </div>
 
       {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={t("searchPlaceholder")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 h-12 text-base"
-        />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t("searchPlaceholder")}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSocialSearched(false) }}
+            onKeyDown={(e) => { if (e.key === "Enter" && search.length >= 2) handleSocialSearch() }}
+            className="pl-10 h-12 text-base"
+          />
+        </div>
+        <Button
+          onClick={handleSocialSearch}
+          disabled={socialLoading || search.length < 2}
+          className="h-12 px-6 gap-2"
+        >
+          {socialLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+          {socialLoading ? "Aranıyor..." : "API'de Ara"}
+        </Button>
       </div>
+
+      {/* Live Social Media Results */}
+      {socialSearched && (
+        <Card className="border-primary/20 bg-primary/[0.02]">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              Sosyal Medya Sonuçları
+              {platformStatuses.length > 0 && (
+                <span className="text-xs font-normal text-muted-foreground ml-2">
+                  ({platformStatuses.filter((p) => p.configured).map((p) => p.platform).join(", ") || "Hiçbir API yapılandırılmadı"})
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {socialLoading ? (
+              <div className="flex items-center justify-center py-8 gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-muted-foreground">Platformlar aranıyor...</span>
+              </div>
+            ) : socialResults.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {socialResults.map((result) => (
+                  <SocialResultCard key={`${result.platform}-${result.id}`} result={result} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  {platformStatuses.some((p) => p.configured)
+                    ? `"${search}" için sonuç bulunamadı`
+                    : "Hiçbir sosyal medya API'si yapılandırılmamış. .env dosyasına API anahtarlarınızı ekleyin."}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sidebar - Desktop */}
@@ -380,5 +472,73 @@ export default function DiscoverPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+const platformIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  instagram: Instagram,
+  youtube: Youtube,
+  tiktok: (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={props.className}>
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88 2.2V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+    </svg>
+  ),
+}
+
+const platformColors: Record<string, string> = {
+  instagram: "bg-gradient-to-r from-purple-500 to-pink-500",
+  youtube: "bg-red-600",
+  tiktok: "bg-black dark:bg-white dark:text-black",
+}
+
+function SocialResultCard({ result }: { result: SocialSearchResult }) {
+  const Icon = platformIcons[result.platform]
+  const profileUrl = result.platform === "youtube"
+    ? `https://youtube.com/channel/${result.id}`
+    : result.platform === "instagram"
+    ? `https://instagram.com/${result.username}`
+    : `https://tiktok.com/@${result.username}`
+
+  return (
+    <Card className="overflow-hidden transition-all hover:shadow-md hover:border-primary/30">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarImage src={result.avatarUrl} alt={result.displayName} />
+            <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+              {result.displayName.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold truncate">{result.displayName}</p>
+              {result.isVerified && (
+                <Badge variant="secondary" className="text-[10px] px-1 py-0">✓</Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground truncate">@{result.username}</p>
+          </div>
+          <Badge
+            className={cn("text-white text-[10px] px-1.5 shrink-0", platformColors[result.platform])}
+          >
+            {Icon && <Icon className="h-3 w-3" />}
+          </Badge>
+        </div>
+        {result.description && (
+          <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{result.description}</p>
+        )}
+        <div className="flex items-center justify-between mt-3 pt-3 border-t">
+          <span className="text-sm font-semibold">{formatNumber(result.followers)} takipçi</span>
+          <a
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            Profil <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
