@@ -17,6 +17,7 @@ export const authOptions: NextAuthOptions = {
           { id: "1", email: "admin@influencermarketing.tr", password: "admin123", name: "Admin User", role: "admin", plan: "enterprise", company: "InfluencerMarketing.tr", image: null },
           { id: "2", email: "demo@influencermarketing.tr", password: "demo123", name: "Demo User", role: "user", plan: "professional", company: "Demo Company", image: null },
           { id: "3", email: "user@influencermarketing.tr", password: "user123", name: "Free User", role: "user", plan: "free", company: "Startup Inc.", image: null },
+          { id: "4", email: "mehmet@kyrecosmetic.com", password: "Can112233*", name: "Mehmet", role: "admin", plan: "enterprise", company: "Kyre Cosmetic", image: null },
         ]
 
         const user = demoUsers.find(
