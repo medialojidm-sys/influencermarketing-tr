@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { name: { contains: search } },
-        { bio: { contains: search } },
-        { categories: { contains: search } },
+        { name: { contains: search, mode: "insensitive" } },
+        { bio: { contains: search, mode: "insensitive" } },
+        { categories: { contains: search, mode: "insensitive" } },
       ]
     }
     if (country) where.country = country
-    if (category) where.categories = { contains: category }
+    if (category) where.categories = { contains: category, mode: "insensitive" }
     if (isVerified === "true") where.isVerified = true
     if (minQualityScore > 0) where.qualityScore = { gte: minQualityScore }
 

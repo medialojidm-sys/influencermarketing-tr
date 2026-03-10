@@ -26,7 +26,6 @@ const campaignsData = [
 async function main() {
   console.log("Seeding database...")
 
-  // Create demo users
   const admin = await prisma.user.upsert({
     where: { email: "admin@influencermarketing.tr" },
     update: {},
@@ -53,7 +52,6 @@ async function main() {
     },
   })
 
-  // Create influencers with social accounts
   for (const data of influencersData) {
     const { socialAccounts, ...influencerData } = data
     const influencer = await prisma.influencer.create({
@@ -77,7 +75,6 @@ async function main() {
       },
     })
 
-    // Create audience data for the last 12 months
     const months = Array.from({ length: 12 }, (_, i) => {
       const d = new Date()
       d.setMonth(d.getMonth() - (11 - i))
@@ -111,9 +108,7 @@ async function main() {
             { country: "FR", percentage: 2 + Math.floor(Math.random() * 3) },
           ]),
           interestData: JSON.stringify(
-            data.categories.length > 0
-              ? JSON.parse(data.categories).map((c: string, i: number) => ({ name: c, percentage: 30 - i * 8 }))
-              : [{ name: "general", percentage: 50 }]
+            JSON.parse(data.categories).map((c: string, i: number) => ({ name: c, percentage: 30 - i * 8 }))
           ),
         },
       })
@@ -135,7 +130,6 @@ async function main() {
     }
   }
 
-  // Create campaigns
   for (const campaignData of campaignsData) {
     await prisma.campaign.create({
       data: {
@@ -158,7 +152,6 @@ async function main() {
     })
   }
 
-  // Create influencer lists
   await prisma.influencerList.create({
     data: {
       name: "Top Beauty Influencers",
