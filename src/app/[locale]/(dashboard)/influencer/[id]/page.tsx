@@ -94,21 +94,33 @@ export default function InfluencerProfilePage() {
   const [listDialogOpen, setListDialogOpen] = useState(false)
   const [newListName, setNewListName] = useState("")
   const [addedToLists, setAddedToLists] = useState<Set<string>>(new Set())
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const influencer = getInfluencerById(id)
 
-  function handleAddToList(listId: string) {
+  function handleAddToList(listId: string, listName: string) {
     if (!influencer || addedToLists.has(listId)) return
     addInfluencerToList(listId, influencer)
     setAddedToLists((prev) => new Set(prev).add(listId))
+    setSuccessMessage(`"${listName}" listesine eklendi!`)
+    setTimeout(() => {
+      setListDialogOpen(false)
+      setSuccessMessage(null)
+    }, 1200)
   }
 
   function handleCreateAndAdd() {
     if (!influencer || !newListName.trim()) return
-    const newList = createList(newListName.trim())
+    const name = newListName.trim()
+    const newList = createList(name)
     addInfluencerToList(newList.id, influencer)
     setAddedToLists((prev) => new Set(prev).add(newList.id))
     setNewListName("")
+    setSuccessMessage(`"${name}" listesi oluşturuldu ve eklendi!`)
+    setTimeout(() => {
+      setListDialogOpen(false)
+      setSuccessMessage(null)
+    }, 1200)
   }
 
   if (!influencer) {
@@ -498,59 +510,77 @@ export default function InfluencerProfilePage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 mt-2">
-              {getLists().length > 0 ? (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {getLists().map((list) => {
-                    const alreadyAdded = addedToLists.has(list.id) || list.items.some((item) => item.influencer.id === id)
-                    return (
-                      <button
-                        key={list.id}
-                        onClick={() => handleAddToList(list.id)}
-                        disabled={alreadyAdded}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors",
-                          alreadyAdded
-                            ? "bg-primary/5 border-primary/20 cursor-default"
-                            : "hover:bg-muted/50 hover:border-primary/30 cursor-pointer"
-                        )}
-                      >
-                        <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{list.name}</p>
-                          <p className="text-xs text-muted-foreground">{list.items.length} influencer</p>
-                        </div>
-                        {alreadyAdded && <Check className="h-4 w-4 text-primary shrink-0" />}
-                      </button>
-                    )
-                  })}
+              {successMessage && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400">
+                  <Check className="h-4 w-4 shrink-0" />
+                  <p className="text-sm font-medium">{successMessage}</p>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">Henüz liste yok</p>
               )}
 
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-2">Yeni liste oluştur</p>
-                <div className="flex gap-2">
-                  <Input
-                    value={newListName}
-                    onChange={(e) => setNewListName(e.target.value)}
-                    placeholder="Liste adı..."
-                    className="h-9"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleCreateAndAdd()
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleCreateAndAdd}
-                    disabled={!newListName.trim()}
-                    className="h-9 shrink-0"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Ekle
-                  </Button>
-                </div>
-              </div>
+              {!successMessage && (
+                <>
+                  <p className="text-sm text-muted-foreground">Bir listeye tıklayarak ekleyin:</p>
+                  {getLists().length > 0 ? (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {getLists().map((list) => {
+                        const alreadyAdded = addedToLists.has(list.id) || list.items.some((item) => item.influencer.id === id)
+                        return (
+                          <button
+                            key={list.id}
+                            onClick={() => handleAddToList(list.id, list.name)}
+                            disabled={alreadyAdded}
+                            className={cn(
+                              "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all",
+                              alreadyAdded
+                                ? "bg-primary/5 border-primary/20 cursor-default"
+                                : "hover:bg-primary/5 hover:border-primary/40 hover:shadow-sm cursor-pointer active:scale-[0.98]"
+                            )}
+                          >
+                            <FolderOpen className={cn("h-5 w-5 shrink-0", alreadyAdded ? "text-primary" : "text-muted-foreground")} />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{list.name}</p>
+                              <p className="text-xs text-muted-foreground">{list.items.length} influencer</p>
+                            </div>
+                            {alreadyAdded ? (
+                              <Badge variant="secondary" className="shrink-0 text-xs gap-1">
+                                <Check className="h-3 w-3" /> Eklendi
+                              </Badge>
+                            ) : (
+                              <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">Henüz liste yok. Aşağıdan yeni bir liste oluşturun.</p>
+                  )}
+
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium mb-2">Veya yeni liste oluşturup ekleyin:</p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        placeholder="Yeni liste adı..."
+                        className="h-9"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleCreateAndAdd()
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleCreateAndAdd}
+                        disabled={!newListName.trim()}
+                        className="h-9 shrink-0"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Oluştur
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </DialogContent>
         </Dialog>
