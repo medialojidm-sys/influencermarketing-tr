@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
@@ -18,7 +19,7 @@ import {
   Tooltip as RechartsTooltip,
   Legend,
 } from "recharts"
-import { getInfluencerById, getInfluencers, getEngagementHistory, getGrowthData } from "@/lib/mock-data"
+import { getInfluencerById, getInfluencers, getEngagementHistory, getGrowthData, getLists, addInfluencerToList, createList } from "@/lib/mock-data"
 import { formatNumber, formatPercentage, getEngagementColor, getScoreColor, getPlatformColor, platformChartColors } from "@/lib/utils"
 import type { SocialAccount } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import {
   CheckCircle,
   MapPin,
   Megaphone,
@@ -49,6 +58,9 @@ import {
   TrendingUp,
   BarChart3,
   BarChart2,
+  Plus,
+  Check,
+  FolderOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -79,7 +91,25 @@ export default function InfluencerProfilePage() {
   const tCategories = useTranslations("categories")
   const tCountries = useTranslations("countries")
 
+  const [listDialogOpen, setListDialogOpen] = useState(false)
+  const [newListName, setNewListName] = useState("")
+  const [addedToLists, setAddedToLists] = useState<Set<string>>(new Set())
+
   const influencer = getInfluencerById(id)
+
+  function handleAddToList(listId: string) {
+    if (!influencer || addedToLists.has(listId)) return
+    addInfluencerToList(listId, influencer)
+    setAddedToLists((prev) => new Set(prev).add(listId))
+  }
+
+  function handleCreateAndAdd() {
+    if (!influencer || !newListName.trim()) return
+    const newList = createList(newListName.trim())
+    addInfluencerToList(newList.id, influencer)
+    setAddedToLists((prev) => new Set(prev).add(newList.id))
+    setNewListName("")
+  }
 
   if (!influencer) {
     return (
@@ -191,7 +221,7 @@ export default function InfluencerProfilePage() {
                         {t("addToCampaign")}
                       </Link>
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => setListDialogOpen(true)}>
                       <ListPlus className="h-4 w-4 mr-2" />
                       {t("addToList")}
                     </Button>
@@ -455,6 +485,75 @@ export default function InfluencerProfilePage() {
             </div>
           </CardContent>
         </Card>
+        {/* Add to List Dialog */}
+        <Dialog open={listDialogOpen} onOpenChange={setListDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ListPlus className="h-5 w-5" />
+                {t("addToList")}
+              </DialogTitle>
+              <DialogDescription>
+                {influencer.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              {getLists().length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {getLists().map((list) => {
+                    const alreadyAdded = addedToLists.has(list.id) || list.items.some((item) => item.influencer.id === id)
+                    return (
+                      <button
+                        key={list.id}
+                        onClick={() => handleAddToList(list.id)}
+                        disabled={alreadyAdded}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors",
+                          alreadyAdded
+                            ? "bg-primary/5 border-primary/20 cursor-default"
+                            : "hover:bg-muted/50 hover:border-primary/30 cursor-pointer"
+                        )}
+                      >
+                        <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{list.name}</p>
+                          <p className="text-xs text-muted-foreground">{list.items.length} influencer</p>
+                        </div>
+                        {alreadyAdded && <Check className="h-4 w-4 text-primary shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">Henüz liste yok</p>
+              )}
+
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium mb-2">Yeni liste oluştur</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                    placeholder="Liste adı..."
+                    className="h-9"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCreateAndAdd()
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleCreateAndAdd}
+                    disabled={!newListName.trim()}
+                    className="h-9 shrink-0"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Ekle
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   )
